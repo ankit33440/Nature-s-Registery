@@ -44,11 +44,14 @@ axiosInstance.interceptors.response.use(
       try {
         const baseURL = import.meta.env.VITE_API_BASE_URL as string;
         const { data } = await axios.post<{
-          data: { accessToken: string };
+          success: true;
+          data: { accessToken: string; refreshToken: string };
         }>(`${baseURL}/auth/refresh`, { refreshToken });
 
         const newAccessToken = data.data.accessToken;
+        const newRefreshToken = data.data.refreshToken;
         localStorage.setItem('accessToken', newAccessToken);
+        localStorage.setItem('refreshToken', newRefreshToken);
 
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;

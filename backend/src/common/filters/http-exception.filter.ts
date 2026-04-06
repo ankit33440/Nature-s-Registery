@@ -15,8 +15,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message: string | string[] = 'Internal server error';
-    let error = 'Internal Server Error';
+    let message: string = 'Internal server error';
+    let errorCode: string | undefined;
 
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
@@ -24,22 +24,28 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
       if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
-      } else if (
-        typeof exceptionResponse === 'object' &&
-        exceptionResponse !== null
-      ) {
+      } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         const resp = exceptionResponse as Record<string, unknown>;
-        message = (resp['message'] as string | string[]) ?? exception.message;
-        error = (resp['error'] as string) ?? exception.name;
+        const raw = resp['message'];
+        message = Array.isArray(raw)
+          ? (raw as string[]).join('; ')
+          : typeof raw === 'string'
+            ? raw
+            : exception.message;
+        errorCode = typeof resp['errorCode'] === 'string' ? resp['errorCode'] : undefined;
       }
+    } else if (exception instanceof Error) {
+      message = exception.message;
     }
 
-    response.status(statusCode).json({
-      statusCode,
+    const body: Record<string, unknown> = {
+      success: false,
       message,
-      error,
-      timestamp: new Date().toISOString(),
+      statusCode,
       path: request.url,
-    });
+    };
+    if (errorCode) body['errorCode'] = errorCode;
+
+    response.status(statusCode).json(body);
   }
 }

@@ -51,24 +51,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (data: LoginRequest): Promise<void> => {
     const res = await authApi.login(data);
-    const { accessToken: at, refreshToken: rt } = res.data.data;
+    const { accessToken: at, refreshToken: rt, user: u } = res.data.data;
     localStorage.setItem('accessToken', at);
     localStorage.setItem('refreshToken', rt);
     setAccessToken(at);
-
+    // Login response already includes user — no need for a second /users/me call
     const meRes = await authApi.getMe();
     setUser(meRes.data.data);
+    void u; // user from login is partial; getMe returns full entity
   };
 
+  // Register does NOT log in — returns a message and stops.
+  // The caller is responsible for showing the success screen.
   const register = async (data: RegisterRequest): Promise<void> => {
-    const res = await authApi.register(data);
-    const { accessToken: at, refreshToken: rt } = res.data.data;
-    localStorage.setItem('accessToken', at);
-    localStorage.setItem('refreshToken', rt);
-    setAccessToken(at);
-
-    const meRes = await authApi.getMe();
-    setUser(meRes.data.data);
+    await authApi.register(data);
+    // no token storage — account is PENDING_APPROVAL
   };
 
   const logout = async (): Promise<void> => {

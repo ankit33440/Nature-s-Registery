@@ -1,12 +1,21 @@
-import { UserRole } from './user.types';
-
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
 }
 
+export interface LoginResponse extends AuthTokens {
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+  };
+}
+
 export interface RefreshResponse {
   accessToken: string;
+  refreshToken: string;
 }
 
 export interface LoginRequest {
@@ -19,5 +28,11 @@ export interface RegisterRequest {
   password: string;
   firstName: string;
   lastName: string;
-  role?: UserRole;
+}
+
+export interface AcceptInvitationRequest {
+  invitationToken: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
 }

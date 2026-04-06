@@ -3,10 +3,13 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
+import { AcceptInvitation } from './pages/AcceptInvitation';
 import { Dashboard } from './pages/Dashboard';
 import { Login } from './pages/Login';
 import { NotFound } from './pages/NotFound';
 import { Register } from './pages/Register';
+import { UserManagement } from './pages/UserManagement';
+import { UserRole } from './types/user.types';
 
 export default function App() {
   return (
@@ -14,20 +17,23 @@ export default function App() {
       <AuthProvider>
         <Toaster
           position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: { fontSize: '14px' },
-          }}
+          toastOptions={{ duration: 4000, style: { fontSize: '14px' } }}
         />
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/accept-invitation" element={<AcceptInvitation />} />
 
-          {/* Protected routes */}
+          {/* Protected routes — any authenticated ACTIVE user */}
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<Dashboard />} />
+
+              {/* SUPERADMIN only */}
+              <Route element={<ProtectedRoute roles={[UserRole.SUPERADMIN]} />}>
+                <Route path="/admin/users" element={<UserManagement />} />
+              </Route>
             </Route>
           </Route>
 

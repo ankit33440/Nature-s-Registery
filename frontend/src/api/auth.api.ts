@@ -1,38 +1,43 @@
 import { AxiosResponse } from 'axios';
-import { AuthTokens, LoginRequest, RefreshResponse, RegisterRequest } from '../types/auth.types';
+import {
+  AcceptInvitationRequest,
+  LoginRequest,
+  LoginResponse,
+  RefreshResponse,
+  RegisterRequest,
+} from '../types/auth.types';
 import { User } from '../types/user.types';
 import axiosInstance from './axios';
 
 interface ApiResponse<T> {
+  success: true;
   data: T;
-  statusCode: number;
-  timestamp: string;
 }
 
 export const authApi = {
-  register(
-    data: RegisterRequest,
-  ): Promise<AxiosResponse<ApiResponse<AuthTokens>>> {
-    return axiosInstance.post<ApiResponse<AuthTokens>>('/auth/register', data);
+  register(data: RegisterRequest): Promise<AxiosResponse<ApiResponse<{ message: string }>>> {
+    return axiosInstance.post('/auth/register', data);
   },
 
-  login(data: LoginRequest): Promise<AxiosResponse<ApiResponse<AuthTokens>>> {
-    return axiosInstance.post<ApiResponse<AuthTokens>>('/auth/login', data);
+  login(data: LoginRequest): Promise<AxiosResponse<ApiResponse<LoginResponse>>> {
+    return axiosInstance.post('/auth/login', data);
   },
 
-  refresh(
-    refreshToken: string,
-  ): Promise<AxiosResponse<ApiResponse<RefreshResponse>>> {
-    return axiosInstance.post<ApiResponse<RefreshResponse>>('/auth/refresh', {
-      refreshToken,
-    });
+  refresh(refreshToken: string): Promise<AxiosResponse<ApiResponse<RefreshResponse>>> {
+    return axiosInstance.post('/auth/refresh', { refreshToken });
+  },
+
+  acceptInvitation(
+    data: AcceptInvitationRequest,
+  ): Promise<AxiosResponse<ApiResponse<{ message: string }>>> {
+    return axiosInstance.post('/auth/accept-invitation', data);
   },
 
   logout(): Promise<AxiosResponse<void>> {
-    return axiosInstance.post<void>('/auth/logout');
+    return axiosInstance.post('/auth/logout');
   },
 
   getMe(): Promise<AxiosResponse<ApiResponse<User>>> {
-    return axiosInstance.get<ApiResponse<User>>('/users/me');
+    return axiosInstance.get('/users/me');
   },
 };
