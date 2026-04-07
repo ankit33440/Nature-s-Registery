@@ -7,6 +7,7 @@ import { AcceptInvitation } from './pages/AcceptInvitation';
 import { Dashboard } from './pages/Dashboard';
 import { Login } from './pages/Login';
 import { NotFound } from './pages/NotFound';
+import { Projects } from './pages/Projects';
 import { Register } from './pages/Register';
 import { UserManagement } from './pages/UserManagement';
 import { UserRole } from './types/user.types';
@@ -29,6 +30,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/projects" element={<Projects />} />
 
               {/* SUPERADMIN only */}
               <Route element={<ProtectedRoute roles={[UserRole.SUPERADMIN]} />}>
