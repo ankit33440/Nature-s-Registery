@@ -1063,7 +1063,7 @@ export function UserManagement() {
 
   return (
     <div className="space-y-0">
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <section>
         <ShellCard className="overflow-hidden">
           <div className="border-b border-stone-100 px-6 py-6 sm:px-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -1129,35 +1129,11 @@ export function UserManagement() {
             />
           </div>
         </ShellCard>
-
-        <ShellCard className="p-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
-            Page Context
-          </p>
-          <div className="mt-4 space-y-4">
-            <div className="rounded-2xl bg-stone-50 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-stone-400">
-                Current Tab
-              </p>
-              <p className="mt-2 text-lg font-semibold text-stone-900">
-                {activeTab.label}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-stone-50 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-stone-400">
-                URL Persistence
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-stone-600">
-                The selected tab is stored in the URL, while pagination stays server-driven for larger user lists.
-              </p>
-            </div>
-          </div>
-        </ShellCard>
       </section>
 
       <ShellCard className="overflow-hidden">
         <div className="border-b border-stone-100 px-6 py-5">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap gap-3">
             <div className="flex flex-wrap gap-2">
               {TABS.map((tab) => (
                 <TabButton
@@ -1169,29 +1145,19 @@ export function UserManagement() {
                 />
               ))}
             </div>
-
-            <div className="flex items-center gap-3 rounded-2xl bg-stone-50 px-4 py-3 text-sm text-stone-500">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              URL tab state: <span className="font-semibold text-stone-700">{activeTabKey}</span>
-            </div>
           </div>
         </div>
 
         <div className="border-b border-stone-100 px-6 py-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-stone-900">
-                {activeTab.label}
-              </h2>
-              <p className="mt-1 text-sm text-stone-500">
-                Showing {filteredUsers.length} visible result
-                {filteredUsers.length !== 1 ? 's' : ''} from server page {page} of{' '}
-                {totalPages}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm text-stone-500">
-              Filter is driven by <span className="font-semibold text-stone-700">?tab={activeTabKey}</span>
-            </div>
+          <div>
+            <h2 className="text-xl font-semibold text-stone-900">
+              {activeTab.label}
+            </h2>
+            <p className="mt-1 text-sm text-stone-500">
+              Showing {filteredUsers.length} visible result
+              {filteredUsers.length !== 1 ? 's' : ''} from server page {page} of{' '}
+              {totalPages}
+            </p>
           </div>
         </div>
 
