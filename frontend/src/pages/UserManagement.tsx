@@ -150,16 +150,16 @@ function ApproveModal({
 }: {
   user: User;
   onClose: () => void;
-  onDone: () => void;
+  onDone: (user: User) => void;
 }) {
   const [loading, setLoading] = useState(false);
 
   const confirm = async () => {
     setLoading(true);
     try {
-      await usersApi.approve(user.id);
+      const response = await usersApi.approve(user.id);
       toast.success(`${user.firstName} ${user.lastName} approved`);
-      onDone();
+      onDone(response.data.data);
     } catch {
       toast.error('Failed to approve user');
     } finally {
@@ -193,7 +193,7 @@ function RejectModal({
 }: {
   user: User;
   onClose: () => void;
-  onDone: () => void;
+  onDone: (user: User) => void;
 }) {
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
@@ -201,9 +201,9 @@ function RejectModal({
   const confirm = async () => {
     setLoading(true);
     try {
-      await usersApi.reject(user.id, reason || undefined);
+      const response = await usersApi.reject(user.id, reason || undefined);
       toast.success(`${user.firstName} ${user.lastName} rejected`);
-      onDone();
+      onDone(response.data.data);
     } catch {
       toast.error('Failed to reject user');
     } finally {
@@ -295,7 +295,7 @@ function DeactivateModal({
 }: {
   user: User;
   onClose: () => void;
-  onDone: () => void;
+  onDone: (user: User) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const action = user.isActive ? 'Deactivate' : 'Activate';
@@ -303,9 +303,9 @@ function DeactivateModal({
   const confirm = async () => {
     setLoading(true);
     try {
-      await usersApi.updateStatus(user.id, !user.isActive);
+      const response = await usersApi.updateStatus(user.id, !user.isActive);
       toast.success(`${user.firstName} ${user.lastName} ${action.toLowerCase()}d`);
-      onDone();
+      onDone(response.data.data);
     } catch {
       toast.error(`Failed to ${action.toLowerCase()} user`);
     } finally {
@@ -341,7 +341,7 @@ function CreateUserModal({
   onDone,
 }: {
   onClose: () => void;
-  onDone: () => void;
+  onDone: (user: User) => void;
 }) {
   const [form, setForm] = useState({
     firstName: '',
@@ -358,9 +358,9 @@ function CreateUserModal({
     setErr(null);
     setLoading(true);
     try {
-      await usersApi.create(form);
+      const response = await usersApi.create(form);
       toast.success('User created successfully');
-      onDone();
+      onDone(response.data.data);
     } catch (error) {
       if (axios.isAxiosError(error)) {
         setErr(
@@ -468,7 +468,7 @@ function InviteUserModal({
   onDone,
 }: {
   onClose: () => void;
-  onDone: () => void;
+  onDone: (user: User) => void;
 }) {
   const [form, setForm] = useState({
     firstName: '',
@@ -486,7 +486,18 @@ function InviteUserModal({
     try {
       await usersApi.invite(form);
       toast.success(`Invitation sent to ${form.email}`);
-      onDone();
+      onDone({
+        id: `invited-${Date.now()}`,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        role: form.role,
+        status: UserStatus.INVITED,
+        isActive: false,
+        rejectionReason: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
     } catch (error) {
       if (axios.isAxiosError(error)) {
         setErr(
@@ -950,8 +961,8 @@ function PlusGlyph({ className }: { className?: string }) {
 export function UserManagement() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [users, setUsers] = useState<User[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<ModalState>(null);
@@ -968,10 +979,6 @@ export function UserManagement() {
     }
   }, [searchParams, setSearchParams]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [activeTabKey]);
-
   const activeTab = TABS.find((tab) => tab.key === activeTabKey) ?? TABS[0];
   const activeStatus = 'status' in activeTab ? activeTab.status : undefined;
 
@@ -981,7 +988,6 @@ export function UserManagement() {
       const res = await usersApi.getAll({
         page,
         limit,
-        status: activeStatus,
       });
       const payload = res.data.data;
       setUsers(payload.data);
@@ -992,11 +998,16 @@ export function UserManagement() {
     } finally {
       setLoading(false);
     }
-  }, [activeStatus, page]);
+  }, [limit, page]);
 
   useEffect(() => {
     void fetchUsers();
   }, [fetchUsers]);
+
+  const filteredUsers = useMemo(() => {
+    if (!activeStatus) return users;
+    return users.filter((user) => user.status === activeStatus);
+  }, [activeStatus, users]);
 
   const visibleCounts = useMemo(
     () => ({
@@ -1013,10 +1024,11 @@ export function UserManagement() {
   );
 
   const tabCountMap: Partial<Record<TabKey, number>> = {
-    all: total,
-    active: activeTabKey === 'active' ? total : visibleCounts.active,
-    pending: activeTabKey === 'pending' ? total : visibleCounts.pending,
-    invited: activeTabKey === 'invited' ? total : visibleCounts.invited,
+    all: users.length,
+    active: visibleCounts.active,
+    pending: visibleCounts.pending,
+    invited: visibleCounts.invited,
+    rejected: users.filter((user) => user.status === UserStatus.REJECTED).length,
   };
 
   const openTab = (key: TabKey) => {
@@ -1026,10 +1038,28 @@ export function UserManagement() {
   };
 
   const closeModal = () => setModal(null);
-  const handleDone = () => {
+
+  const replaceUser = useCallback((nextUser: User) => {
+    setUsers((current) =>
+      current.map((user) => (user.id === nextUser.id ? nextUser : user)),
+    );
     closeModal();
-    void fetchUsers();
-  };
+  }, []);
+
+  const addUser = useCallback((nextUser: User) => {
+    setUsers((current) => [nextUser, ...current].slice(0, limit));
+    setTotal((current) => {
+      const nextTotal = current + 1;
+      setTotalPages(Math.max(1, Math.ceil(nextTotal / limit)));
+      return nextTotal;
+    });
+    closeModal();
+    setPage(1);
+  }, [limit]);
+
+  const handleResendDone = useCallback(() => {
+    closeModal();
+  }, []);
 
   return (
     <div className="space-y-0">
@@ -1070,30 +1100,30 @@ export function UserManagement() {
 
           <div className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard
-              title="Filtered Users"
-              value={String(total)}
-              subtitle={`Currently showing ${activeTab.label.toLowerCase()}`}
+              title="Users On This Page"
+              value={String(filteredUsers.length)}
+              subtitle={`Visible in ${activeTab.label.toLowerCase()}`}
               tone="bg-emerald-50 text-emerald-700"
               icon={<UsersGlyph className="h-5 w-5" />}
             />
             <SummaryCard
               title="Pending Review"
               value={String(visibleCounts.pending)}
-              subtitle="Visible in current result set"
+              subtitle="Counted from this loaded page"
               tone="bg-amber-50 text-amber-700"
               icon={<ChartGlyph className="h-5 w-5" />}
             />
             <SummaryCard
               title="Invitations"
               value={String(visibleCounts.invited)}
-              subtitle="Awaiting acceptance"
+              subtitle="Pending on this page"
               tone="bg-blue-50 text-blue-700"
               icon={<InviteGlyph className="h-5 w-5" />}
             />
             <SummaryCard
               title="Restricted Access"
               value={String(visibleCounts.disabled)}
-              subtitle="Active profiles currently disabled"
+              subtitle="Disabled records on this page"
               tone="bg-stone-100 text-stone-700"
               icon={<ChartGlyph className="h-5 w-5" />}
             />
@@ -1118,7 +1148,7 @@ export function UserManagement() {
                 URL Persistence
               </p>
               <p className="mt-2 text-sm leading-relaxed text-stone-600">
-                The selected tab is stored in the URL so reloads and browser navigation keep the same management view active.
+                The selected tab is stored in the URL, while pagination stays server-driven for larger user lists.
               </p>
             </div>
           </div>
@@ -1154,7 +1184,9 @@ export function UserManagement() {
                 {activeTab.label}
               </h2>
               <p className="mt-1 text-sm text-stone-500">
-                {total} result{total !== 1 ? 's' : ''} across page {page}
+                Showing {filteredUsers.length} visible result
+                {filteredUsers.length !== 1 ? 's' : ''} from server page {page} of{' '}
+                {totalPages}
               </p>
             </div>
             <div className="rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm text-stone-500">
@@ -1167,16 +1199,16 @@ export function UserManagement() {
           <div className="flex items-center justify-center py-20">
             <div className="h-8 w-8 rounded-full border-4 border-emerald-700 border-t-transparent animate-spin" />
           </div>
-        ) : users.length === 0 ? (
+        ) : filteredUsers.length === 0 ? (
           <EmptyState tabLabel={activeTab.label} />
         ) : (
-          <UsersTable users={users} onOpenModal={setModal} />
+          <UsersTable users={filteredUsers} onOpenModal={setModal} />
         )}
 
         <div className="border-t border-stone-100 px-6 py-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-stone-500">
-              Page {page} of {totalPages}
+              Page {page} of {totalPages} across {total} total users
             </p>
             <div className="flex gap-2">
               <button
@@ -1198,12 +1230,12 @@ export function UserManagement() {
         </div>
       </ShellCard>
 
-      {modal?.type === 'approve' && <ApproveModal user={modal.user} onClose={closeModal} onDone={handleDone} />}
-      {modal?.type === 'reject' && <RejectModal user={modal.user} onClose={closeModal} onDone={handleDone} />}
-      {modal?.type === 'resend' && <ResendModal user={modal.user} onClose={closeModal} onDone={handleDone} />}
-      {modal?.type === 'deactivate' && <DeactivateModal user={modal.user} onClose={closeModal} onDone={handleDone} />}
-      {modal?.type === 'create' && <CreateUserModal onClose={closeModal} onDone={handleDone} />}
-      {modal?.type === 'invite' && <InviteUserModal onClose={closeModal} onDone={handleDone} />}
+      {modal?.type === 'approve' && <ApproveModal user={modal.user} onClose={closeModal} onDone={replaceUser} />}
+      {modal?.type === 'reject' && <RejectModal user={modal.user} onClose={closeModal} onDone={replaceUser} />}
+      {modal?.type === 'resend' && <ResendModal user={modal.user} onClose={closeModal} onDone={handleResendDone} />}
+      {modal?.type === 'deactivate' && <DeactivateModal user={modal.user} onClose={closeModal} onDone={replaceUser} />}
+      {modal?.type === 'create' && <CreateUserModal onClose={closeModal} onDone={addUser} />}
+      {modal?.type === 'invite' && <InviteUserModal onClose={closeModal} onDone={addUser} />}
     </div>
   );
 }
