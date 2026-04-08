@@ -9,7 +9,7 @@ export type SidebarItem = {
 
 const adminMenu: SidebarItem[] = [
   {
-    label: 'Dashboard',
+    label: 'Home',
     to: '/dashboard',
     icon: <DashboardIcon className="h-5 w-5" />,
   },
@@ -18,7 +18,21 @@ const adminMenu: SidebarItem[] = [
     to: '/admin/users',
     icon: <UsersIcon className="h-5 w-5" />,
   },
-  { label: 'Projects', to: '/projects', icon: <ProjectsIcon className="h-5 w-5" /> },
+  {
+    label: 'Roles',
+    to: '/admin/roles',
+    icon: <RolesIcon className="h-5 w-5" />,
+  },
+  {
+    label: 'Permissions',
+    to: '/admin/permissions',
+    icon: <PermissionsIcon className="h-5 w-5" />,
+  },
+  {
+    label: 'Departments',
+    to: '/admin/departments',
+    icon: <DepartmentsIcon className="h-5 w-5" />,
+  },
   { label: 'Verification', icon: <VerificationIcon className="h-5 w-5" /> },
   { label: 'Certification', icon: <CertificationIcon className="h-5 w-5" /> },
   { label: 'Credits', icon: <CreditsIcon className="h-5 w-5" /> },
@@ -77,14 +91,29 @@ const buyerMenu: SidebarItem[] = [
   { label: 'Settings', icon: <SettingsIcon className="h-5 w-5" /> },
 ];
 
-export function getSidebarItems(role?: UserRole | null): SidebarItem[] {
+function buildDynamicMenu(permissions: string[]): SidebarItem[] {
+  const items: SidebarItem[] = [
+    { label: 'Dashboard', to: '/dashboard', icon: <DashboardIcon className="h-5 w-5" /> },
+  ];
+  if (permissions.some((p) => p.startsWith('projects:')))
+    items.push({ label: 'Projects', to: '/projects', icon: <ProjectsIcon className="h-5 w-5" /> });
+  if (permissions.some((p) => p.startsWith('verification:')))
+    items.push({ label: 'Verification', icon: <VerificationIcon className="h-5 w-5" /> });
+  if (permissions.some((p) => p.startsWith('certification:')))
+    items.push({ label: 'Certification', icon: <CertificationIcon className="h-5 w-5" /> });
+  if (permissions.some((p) => p.startsWith('reports:')))
+    items.push({ label: 'Reports', icon: <ReportsIcon className="h-5 w-5" /> });
+  items.push({ label: 'Settings', icon: <SettingsIcon className="h-5 w-5" /> });
+  return items;
+}
+
+export function getSidebarItems(role?: UserRole | null, permissions: string[] = []): SidebarItem[] {
   switch (role) {
     case UserRole.PROJECT_DEVELOPER:
       return developerMenu;
     case UserRole.VERIFIER:
-      return verifierMenu;
     case UserRole.CERTIFIER:
-      return certifierMenu;
+      return permissions.length > 0 ? buildDynamicMenu(permissions) : (role === UserRole.VERIFIER ? verifierMenu : certifierMenu);
     case UserRole.BUYER:
       return buyerMenu;
     case UserRole.SUPERADMIN:
@@ -268,6 +297,59 @@ function SettingsIcon({ className }: { className?: string }) {
         strokeLinejoin="round"
       />
       <circle cx="10" cy="10" r="2.2" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function RolesIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className}>
+      <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M3.5 17c0-3 2.9-5.5 6.5-5.5s6.5 2.5 6.5 5.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M14.5 3.5l1.5 1.5-3 3"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PermissionsIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className}>
+      <rect x="4" y="8.5" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M7 8.5V6a3 3 0 0 1 6 0v2.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <circle cx="10" cy="13" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function DepartmentsIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className}>
+      <rect x="7.5" y="2.5" width="5" height="4" rx="1" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="2" y="13.5" width="5" height="4" rx="1" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="13" y="13.5" width="5" height="4" rx="1" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M10 6.5v3M10 9.5H4.5v4M10 9.5h5.5v4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

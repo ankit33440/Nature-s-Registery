@@ -8,8 +8,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { FindOptionsWhere, Repository } from 'typeorm';
-import { User, UserRole, UserStatus } from './entities/user.entity';
+import {
+  PERMISSION_CACHE_TTL_MS,
+  permissionCache,
+} from '../auth/guards/permissions.cache';
+import { Role } from '../roles/entities/role.entity';
+import { RolesService } from '../roles/roles.service';
 import { ListUsersDto } from './dto/list-users.dto';
+import { User, UserRole, UserStatus } from './entities/user.entity';
 
 type SafeUser = Omit<User, 'password' | 'refreshTokenHash' | 'invitationToken'>;
 
@@ -32,6 +38,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly repo: Repository<User>,
+    private readonly rolesService: RolesService,
   ) {}
 
   // ── Internal helpers ──────────────────────────────────────────────────────
@@ -106,6 +113,7 @@ export class UsersService {
     const [users, total] = await this.repo.findAndCount({
       where,
       select: SAFE_SELECT,
+      relations: ['dynamicRoles'],
       skip: (page - 1) * limit,
       take: limit,
       order: { createdAt: 'DESC' },
@@ -239,6 +247,51 @@ export class UsersService {
   ): Promise<SafeUser> {
     await this.repo.update(id, data);
     return this.findById(id) as Promise<SafeUser>;
+  }
+
+  // ── Dynamic RBAC ─────────────────────────────────────────────────────────
+
+  async getPermissionKeys(userId: string): Promise<string[]> {
+    const cached = permissionCache.get(userId);
+    if (cached && cached.expiresAt > Date.now()) return [...cached.keys];
+
+    const user = await this.repo.findOne({
+      where: { id: userId },
+      relations: ['dynamicRoles', 'dynamicRoles.permissions'],
+    });
+    const keys = new Set<string>();
+    for (const role of user?.dynamicRoles ?? []) {
+      for (const perm of role.permissions) keys.add(perm.key);
+    }
+    permissionCache.set(userId, {
+      keys,
+      expiresAt: Date.now() + PERMISSION_CACHE_TTL_MS,
+    });
+    return [...keys];
+  }
+
+  async assignDynamicRoles(userId: string, roleIds: string[]): Promise<SafeUser> {
+    const user = await this.repo.findOne({
+      where: { id: userId },
+      relations: ['dynamicRoles'],
+    });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.role === UserRole.SUPERADMIN) {
+      throw new BadRequestException('Cannot assign dynamic roles to SUPERADMIN');
+    }
+    user.dynamicRoles = await this.rolesService.getRolesByIds(roleIds);
+    await this.repo.save(user);
+    permissionCache.delete(userId);
+    return this.findById(userId) as Promise<SafeUser>;
+  }
+
+  async getDynamicRoles(userId: string): Promise<Role[]> {
+    const user = await this.repo.findOne({
+      where: { id: userId },
+      relations: ['dynamicRoles', 'dynamicRoles.permissions'],
+    });
+    if (!user) throw new NotFoundException('User not found');
+    return user.dynamicRoles;
   }
 
   // ── Seeder helper ─────────────────────────────────────────────────────────

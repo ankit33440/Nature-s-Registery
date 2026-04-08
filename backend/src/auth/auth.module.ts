@@ -6,6 +6,7 @@ import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { PermissionsGuard } from './guards/permissions.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { JwtAccessStrategy } from './strategies/jwt-access.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
@@ -18,8 +19,9 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
     JwtRefreshStrategy,
     JwtAuthGuard,
     RolesGuard,
+    PermissionsGuard,
   ],
   controllers: [AuthController],
-  exports: [JwtAuthGuard, RolesGuard],
+  exports: [JwtAuthGuard, RolesGuard, PermissionsGuard],
 })
 export class AuthModule {}

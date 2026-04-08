@@ -70,4 +70,15 @@ export const usersApi = {
   }): Promise<AxiosResponse<ApiResponse<User>>> {
     return axiosInstance.patch('/users/me', data);
   },
+
+  getMyPermissions(): Promise<AxiosResponse<ApiResponse<string[]>>> {
+    return axiosInstance.get('/users/me/permissions');
+  },
+
+  assignRoles(
+    id: string,
+    roleIds: string[],
+  ): Promise<AxiosResponse<ApiResponse<User>>> {
+    return axiosInstance.put(`/users/${id}/roles`, { roleIds });
+  },
 };

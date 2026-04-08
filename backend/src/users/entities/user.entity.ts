@@ -2,9 +2,12 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinTable,
+  ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Role } from '../../roles/entities/role.entity';
 
 export enum UserRole {
   SUPERADMIN = 'SUPERADMIN',
@@ -58,6 +61,11 @@ export class User {
 
   @Column({ type: 'text', nullable: true, default: null })
   rejectionReason!: string | null;
+
+  /** Dynamic roles assigned via RBAC management UI */
+  @ManyToMany(() => Role, { eager: false })
+  @JoinTable({ name: 'user_dynamic_roles' })
+  dynamicRoles!: Role[];
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -23,6 +24,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { JwtUser } from '../auth/strategies/jwt-access.strategy';
+import { AssignDynamicRolesDto } from './dto/assign-dynamic-roles.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { ListUsersDto } from './dto/list-users.dto';
@@ -58,6 +60,12 @@ export class UsersController {
     @Body() dto: UpdateMeDto,
   ) {
     return this.usersService.updateMe(user.id, dto);
+  }
+
+  @ApiOperation({ summary: "Get current user's flat permission keys" })
+  @Get('me/permissions')
+  getMyPermissions(@CurrentUser() user: JwtUser) {
+    return this.usersService.getPermissionKeys(user.id);
   }
 
   // ── SUPERADMIN only ───────────────────────────────────────────────────────
@@ -179,5 +187,18 @@ export class UsersController {
     @CurrentUser() requester: JwtUser,
   ) {
     return this.usersService.updateRole(id, dto.role, requester.id);
+  }
+
+  @ApiOperation({ summary: "Replace a user's dynamic role set (SUPERADMIN)" })
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
+  @Put(':id/roles')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SUPERADMIN)
+  @HttpCode(HttpStatus.OK)
+  assignDynamicRoles(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AssignDynamicRolesDto,
+  ) {
+    return this.usersService.assignDynamicRoles(id, dto.roleIds);
   }
 }

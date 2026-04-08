@@ -1,3 +1,5 @@
+import type { Role } from './rbac.types';
+
 export enum UserRole {
   SUPERADMIN = 'SUPERADMIN',
   PROJECT_DEVELOPER = 'PROJECT_DEVELOPER',
@@ -22,6 +24,7 @@ export interface User {
   status: UserStatus;
   isActive: boolean;
   rejectionReason: string | null;
+  dynamicRoles?: Role[];
   createdAt: string;
   updatedAt: string;
 }

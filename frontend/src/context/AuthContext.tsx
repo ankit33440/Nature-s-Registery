@@ -7,11 +7,13 @@ import {
   useState,
 } from 'react';
 import { authApi } from '../api/auth.api';
+import { usersApi } from '../api/users.api';
 import { LoginRequest, RegisterRequest } from '../types/auth.types';
 import { User } from '../types/user.types';
 
 interface AuthContextType {
   user: User | null;
+  permissions: string[];
   accessToken: string | null;
   isLoading: boolean;
   login: (data: LoginRequest) => Promise<void>;
@@ -21,8 +23,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+/** Fire-and-forget: fetch the user's dynamic permission keys and update state. */
+async function fetchPermissions(
+  setPermissions: (p: string[]) => void,
+): Promise<void> {
+  try {
+    const res = await usersApi.getMyPermissions();
+    setPermissions(res.data.data);
+  } catch {
+    setPermissions([]);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [accessToken, setAccessToken] = useState<string | null>(
     localStorage.getItem('accessToken'),
   );
@@ -35,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .getMe()
         .then((res) => {
           setUser(res.data.data);
+          void fetchPermissions(setPermissions);
         })
         .catch(() => {
           localStorage.removeItem('accessToken');
@@ -55,14 +71,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('accessToken', at);
     localStorage.setItem('refreshToken', rt);
     setAccessToken(at);
-    // Login response already includes user — no need for a second /users/me call
+    void u;
     const meRes = await authApi.getMe();
     setUser(meRes.data.data);
-    void u; // user from login is partial; getMe returns full entity
+    void fetchPermissions(setPermissions);
   };
 
-  // Register does NOT log in — returns a message and stops.
-  // The caller is responsible for showing the success screen.
   const register = async (data: RegisterRequest): Promise<void> => {
     await authApi.register(data);
     // no token storage — account is PENDING_APPROVAL
@@ -80,12 +94,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('refreshToken');
       setAccessToken(null);
       setUser(null);
+      setPermissions([]);
     }
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, accessToken, isLoading, login, register, logout }}
+      value={{ user, permissions, accessToken, isLoading, login, register, logout }}
     >
       {children}
     </AuthContext.Provider>

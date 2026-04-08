@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { getSidebarItems, SidebarItem } from "./sidebar/sidebarMenu";
 
 export function Layout() {
-  const { user, logout } = useAuth();
+  const { user, permissions, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -107,7 +107,7 @@ export function Layout() {
       />
 
       <Sidebar
-        items={getSidebarItems(user?.role)}
+        items={getSidebarItems(user?.role, permissions)}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={onCloseMobileSidebar}
       />

@@ -9,6 +9,9 @@ import { Login } from './pages/Login';
 import { NotFound } from './pages/NotFound';
 import { Projects } from './pages/Projects';
 import { Register } from './pages/Register';
+import { DepartmentManagement } from './pages/DepartmentManagement';
+import { PermissionManagement } from './pages/PermissionManagement';
+import { RoleManagement } from './pages/RoleManagement';
 import { UserManagement } from './pages/UserManagement';
 import { UserRole } from './types/user.types';
 
@@ -35,6 +38,9 @@ export default function App() {
               {/* SUPERADMIN only */}
               <Route element={<ProtectedRoute roles={[UserRole.SUPERADMIN]} />}>
                 <Route path="/admin/users" element={<UserManagement />} />
+                <Route path="/admin/roles" element={<RoleManagement />} />
+                <Route path="/admin/permissions" element={<PermissionManagement />} />
+                <Route path="/admin/departments" element={<DepartmentManagement />} />
               </Route>
             </Route>
           </Route>

@@ -10,7 +10,9 @@ import {
 } from 'react';
 import toast from 'react-hot-toast';
 import { useSearchParams } from 'react-router-dom';
+import { rolesApi } from '../api/roles.api';
 import { usersApi } from '../api/users.api';
+import { Role } from '../types/rbac.types';
 import { User, UserRole, UserStatus } from '../types/user.types';
 
 const STATUS_LABEL: Record<UserStatus, string> = {
@@ -54,6 +56,7 @@ type ModalState =
   | { type: 'reject'; user: User }
   | { type: 'resend'; user: User }
   | { type: 'deactivate'; user: User }
+  | { type: 'assignRoles'; user: User }
   | { type: 'create' }
   | { type: 'invite' }
   | null;
@@ -589,6 +592,97 @@ function InviteUserModal({
   );
 }
 
+function AssignRolesModal({
+  user,
+  onClose,
+  onDone,
+}: {
+  user: User;
+  onClose: () => void;
+  onDone: (user: User) => void;
+}) {
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [loadingRoles, setLoadingRoles] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await rolesApi.getAll();
+        setRoles(res.data.data);
+        const existing = new Set(user.dynamicRoles?.map((r) => r.id) ?? []);
+        setSelected(existing);
+      } catch {
+        toast.error('Failed to load roles');
+      } finally {
+        setLoadingRoles(false);
+      }
+    })();
+  }, [user]);
+
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await usersApi.assignRoles(user.id, [...selected]);
+      toast.success('Roles updated');
+      onDone(res.data.data);
+    } catch {
+      toast.error('Failed to update roles');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title={`Assign roles — ${user.firstName} ${user.lastName}`} onClose={onClose}>
+      {loadingRoles ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="h-6 w-6 rounded-full border-2 border-green-600 border-t-transparent animate-spin" />
+        </div>
+      ) : roles.length === 0 ? (
+        <p className="py-4 text-sm text-stone-500">No roles available. Create roles in the Roles page first.</p>
+      ) : (
+        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+          {roles.map((role) => (
+            <label
+              key={role.id}
+              className="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 px-4 py-3 hover:bg-stone-50 has-[:checked]:border-green-300 has-[:checked]:bg-green-50"
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(role.id)}
+                onChange={() => toggle(role.id)}
+                className="mt-0.5 h-4 w-4 rounded border-stone-300 accent-green-700"
+              />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-stone-800">{role.name}</p>
+                <p className="text-xs text-stone-500">
+                  {role.permissions.length} permission{role.permissions.length !== 1 ? 's' : ''}
+                  {role.description ? ` · ${role.description}` : ''}
+                </p>
+              </div>
+            </label>
+          ))}
+        </div>
+      )}
+      <ModalActions
+        onCancel={onClose}
+        confirmLabel="Save roles"
+        isLoading={saving}
+        onConfirm={() => void handleSave()}
+      />
+    </Modal>
+  );
+}
+
 function ShellCard({
   children,
   className = '',
@@ -711,7 +805,7 @@ function UsersTable({
         <table className="w-full min-w-[980px]">
           <thead>
             <tr className="border-b border-stone-100 bg-stone-50">
-              {['Person', 'Role', 'Status', 'Joined', 'Access', 'Actions'].map(
+              {['Person', 'Role', 'Dynamic Roles', 'Status', 'Joined', 'Access', 'Actions'].map(
                 (header) => (
                   <th
                     key={header}
@@ -742,6 +836,19 @@ function UsersTable({
                 </td>
                 <td className="px-6 py-5 text-sm text-stone-600">
                   {ROLE_LABEL[user.role]}
+                </td>
+                <td className="px-6 py-5">
+                  {user.dynamicRoles && user.dynamicRoles.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {user.dynamicRoles.map((r) => (
+                        <span key={r.id} className="inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">
+                          {r.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-stone-300 text-sm">—</span>
+                  )}
                 </td>
                 <td className="px-6 py-5">
                   <UserStatusBadge status={user.status} />
@@ -863,6 +970,15 @@ function ActionButtons({
           Resend Invite
         </button>
       )}
+      {user.status === UserStatus.ACTIVE &&
+        (user.role === UserRole.VERIFIER || user.role === UserRole.CERTIFIER) && (
+          <button
+            onClick={() => onOpenModal({ type: 'assignRoles', user })}
+            className={`${baseClass} bg-violet-100 text-violet-700 hover:bg-violet-200`}
+          >
+            Assign Roles
+          </button>
+        )}
       {user.status === UserStatus.ACTIVE &&
         user.role !== UserRole.SUPERADMIN &&
         (user.isActive ? (
@@ -1200,6 +1316,7 @@ export function UserManagement() {
       {modal?.type === 'reject' && <RejectModal user={modal.user} onClose={closeModal} onDone={replaceUser} />}
       {modal?.type === 'resend' && <ResendModal user={modal.user} onClose={closeModal} onDone={handleResendDone} />}
       {modal?.type === 'deactivate' && <DeactivateModal user={modal.user} onClose={closeModal} onDone={replaceUser} />}
+      {modal?.type === 'assignRoles' && <AssignRolesModal user={modal.user} onClose={closeModal} onDone={replaceUser} />}
       {modal?.type === 'create' && <CreateUserModal onClose={closeModal} onDone={addUser} />}
       {modal?.type === 'invite' && <InviteUserModal onClose={closeModal} onDone={addUser} />}
     </div>
